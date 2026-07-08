@@ -1,0 +1,122 @@
+{
+  "theme": "Dark",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) - SCADA Industrial Variant",
+  "typography": {
+    "fonts": {
+      "headings": "IBM Plex Sans",
+      "body": "IBM Plex Sans",
+      "mono": "JetBrains Mono"
+    },
+    "hierarchy": {
+      "h1": "text-2xl sm:text-3xl font-bold tracking-tight text-white",
+      "h2": "text-lg sm:text-xl font-semibold tracking-tight text-gray-100",
+      "h3": "text-base font-medium tracking-tight text-gray-200",
+      "body": "text-sm text-gray-400",
+      "metric_label": "text-xs font-semibold uppercase tracking-[0.1em] text-gray-400",
+      "metric_value": "font-mono text-2xl sm:text-3xl font-bold text-white tabular-nums tracking-tight"
+    },
+    "rules": [
+      "All sensor values, KPIs, and timestamps MUST use JetBrains Mono.",
+      "Never center-align tabular data; always left-align labels and right-align values where appropriate, or left-align both.",
+      "Labels must be uppercase with wide tracking for industrial clarity."
+    ]
+  },
+  "colors": {
+    "background": {
+      "page": "#090A0C",
+      "surface": "#111318",
+      "sub_surface": "#1A1D24"
+    },
+    "border": {
+      "default": "#2A2D35",
+      "active": "#3E4352"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#A1A6B4",
+      "tertiary": "#6B7280"
+    },
+    "status": {
+      "ok": "#30D158",
+      "warning": "#FF9F0A",
+      "critical": "#FF3B30",
+      "offline": "#8E8E93"
+    },
+    "primary": "#0A84FF",
+    "savings_counter": "#30D158",
+    "rules": [
+      "Use status colors purely for functional indicators (dots, borders, chart lines), NOT for large background fills to avoid overwhelming the eye.",
+      "No gradients. Flat colors only.",
+      "Use 10% opacity fills of status colors for backgrounds of alert badges (e.g., bg-red-500/10 text-red-500)."
+    ]
+  },
+  "layout_and_spacing": {
+    "strategy": "Control Room Grid",
+    "spacing_scale": "Tight and dense. Use p-4 for cards, gap-4 for grids.",
+    "overview_grid": "grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4",
+    "drilldown_grid": "grid-cols-1 lg:grid-cols-12 gap-4",
+    "rules": [
+      "Every widget must have h-full to stretch.",
+      "No rounded corners greater than rounded-md (4px). Sharp, precise industrial feel.",
+      "Use 1px solid borders for all cards. Avoid soft shadows."
+    ]
+  },
+  "components": {
+    "cards": {
+      "style": "bg-[#111318] border border-[#2A2D35] rounded-sm",
+      "header": "flex justify-between items-center pb-2 mb-4 border-b border-[#2A2D35]"
+    },
+    "status_indicator": {
+      "style": "w-2 h-2 rounded-full",
+      "animation": "animate-pulse for Critical or Offline states"
+    },
+    "tables": {
+      "style": "w-full text-sm",
+      "header": "text-xs uppercase tracking-wider text-gray-400 border-b border-[#2A2D35] pb-2 text-left",
+      "row": "border-b border-[#2A2D35]/50 hover:bg-[#1A1D24] transition-colors",
+      "cell": "py-2 font-mono tabular-nums"
+    },
+    "charts": {
+      "style": "Use Recharts. Line charts with 1px stroke, no fill. Area charts only for baseline overlay with 10% opacity fill.",
+      "grid": "stroke-[#2A2D35] stroke-dasharray='3 3'"
+    },
+    "gauges": {
+      "style": "Minimalist radial bars or arc lines. Background arc #2A2D35, foreground arc based on status color."
+    },
+    "savings_counter": {
+      "style": "font-mono text-4xl text-[#30D158] font-bold tracking-tighter"
+    }
+  },
+  "micro_interactions": {
+    "hover": "Subtle background shifts (e.g., bg-[#111318] to bg-[#1A1D24]).",
+    "data_update": "Values should use tabular-nums to prevent layout shifting on tick.",
+    "staleness": "If a sensor is offline (last seen > X mins), text color fades to #8E8E93 and shows a small '!' icon."
+  },
+  "accessibility_and_testing": {
+    "rules": [
+      "All interactive elements and KPI displays MUST have a data-testid attribute.",
+      "Use descriptive data-testids (e.g., data-testid='tower-1-flow-value').",
+      "Maintain WCAG AA contrast for all text against the #111318 background."
+    ]
+  },
+  "tech_stack_guidance": {
+    "files": "Use .js and .jsx files for React components. Do not use .tsx or TypeScript.",
+    "libraries": "Recharts for charts/gauges, Lucide-react or Phosphor icons for UI icons."
+  },
+  "media": {
+    "images": [
+      {
+        "category": "background_or_empty_state",
+        "url": "https://images.unsplash.com/photo-1761115435501-bebf019aba54?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwyfHxjb29saW5nJTIwdG93ZXIlMjBpbmR1c3RyaWFsfGVufDB8fHx8MTc4MzUxMDE1NHww&ixlib=rb-4.1.0&q=85",
+        "description": "Industrial cooling towers on a rooftop. Use with heavy black overlay (bg-[#090A0C]/90) if used as an app background, or for auth/login screen."
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Install required fonts from Google Fonts: IBM Plex Sans and JetBrains Mono.",
+    "Build standard pure HTML/Tailwind structures for the dashboard grid, avoiding over-reliance on generic Shadcn cards to maintain the sharp SCADA look.",
+    "Use Recharts for the power-vs-time trend chart and Recharts (RadialBar) or custom SVG for gauges.",
+    "Implement real-time updates seamlessly. Ensure numbers are contained in tabular-num spans to prevent layout shifting on tick.",
+    "Use Phosphor Icons or Lucide with sharp, industrial stroke weights."
+  ]
+}
