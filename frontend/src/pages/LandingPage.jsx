@@ -13,7 +13,7 @@ useGLTF.preload(MODEL_COOLING);
 useGLTF.preload(MODEL_AUDIT);
 
 /* Fit + monochrome-ify a GLB */
-function Model({ url, scroll, xOffset = 0 }) {
+function Model({ url, scroll, visibleRange, spinMul = 2.2 }) {
   const { scene } = useGLTF(url);
   const ref = useRef();
   const prepared = useMemo(() => {
@@ -22,14 +22,13 @@ function Model({ url, scroll, xOffset = 0 }) {
     const size = new THREE.Vector3(); box.getSize(size);
     const center = new THREE.Vector3(); box.getCenter(center);
     const scale = 2.6 / Math.max(size.x, size.y, size.z);
-    clone.position.set(-center.x * scale + xOffset, -center.y * scale, -center.z * scale);
+    clone.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
     clone.scale.setScalar(scale);
     clone.traverse((o) => {
       if (o.isMesh) {
         o.castShadow = true; o.receiveShadow = true;
         const m = o.material;
         if (m) {
-          // Desaturate any colored surfaces toward neutral gray
           if (m.color) {
             const hsl = { h: 0, s: 0, l: 0 };
             m.color.getHSL(hsl);
@@ -41,12 +40,15 @@ function Model({ url, scroll, xOffset = 0 }) {
       }
     });
     return clone;
-  }, [scene, xOffset]);
+  }, [scene]);
 
   useFrame(() => {
     if (!ref.current) return;
     const p = scroll.current;
-    ref.current.rotation.y = p * Math.PI * 2.2;
+    const [lo, hi] = visibleRange;
+    const inRange = p >= lo && p <= hi;
+    ref.current.visible = inRange;
+    ref.current.rotation.y = p * Math.PI * spinMul;
   });
 
   return <primitive ref={ref} object={prepared} />;
@@ -67,7 +69,7 @@ function Rig({ scroll }) {
   return null;
 }
 
-function StageScene({ url, scroll }) {
+function StageScene({ scroll }) {
   return (
     <Canvas
       dpr={[1, 1.8]}
@@ -79,7 +81,10 @@ function StageScene({ url, scroll }) {
       <spotLight position={[3, 5, 4]} angle={0.35} penumbra={0.8} intensity={70} castShadow color="#ffffff" />
       <spotLight position={[-4, 2, -2]} angle={0.5} penumbra={1} intensity={20} color="#ffffff" />
       <Suspense fallback={null}>
-        <Model url={url} scroll={scroll} />
+        {/* Cooling system: hero + stages 1-3 (roughly 0.0 – 0.45 of scroll) */}
+        <Model url={MODEL_COOLING} scroll={scroll} visibleRange={[0.0, 0.48]} spinMul={2.2} />
+        {/* Audit kit: stages 4-6 + CTA (roughly 0.45 – 1.0) */}
+        <Model url={MODEL_AUDIT}   scroll={scroll} visibleRange={[0.48, 1.01]} spinMul={2.4} />
         <Environment preset="warehouse" />
         <ContactShadows position={[0, -1.4, 0]} opacity={0.55} scale={8} blur={2.4} far={4} />
       </Suspense>
@@ -129,8 +134,7 @@ export default function LandingPage() {
     return () => obs.disconnect();
   }, []);
 
-  // Which model to render behind: cooling for 1-3, audit for 4-6, cooling for hero+cta
-  const useAuditModel = ["stage-4", "stage-5", "stage-6"].includes(active);
+  // Model swap is now driven inside the Canvas via scroll ref — no React state needed here
 
   const [form, setForm] = useState({ name: "", company: "", email: "", note: "" });
   const [sent, setSent] = useState(false);
@@ -156,7 +160,7 @@ export default function LandingPage() {
 
       {/* Fixed 3D canvas behind everything */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <StageScene url={useAuditModel ? MODEL_AUDIT : MODEL_COOLING} scroll={scroll} />
+        <StageScene scroll={scroll} />
         {/* right-side vignette to keep text legible on left */}
         <div className="absolute inset-0"
           style={{ background: "linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.55) 30%, rgba(0,0,0,0) 55%, rgba(0,0,0,0) 100%)" }} />
