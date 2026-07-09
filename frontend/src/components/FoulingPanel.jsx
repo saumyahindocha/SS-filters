@@ -2,6 +2,9 @@ import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from "
 import { IDS } from "@/constants/testIds";
 import { Waves, Clock } from "lucide-react";
 
+const RADIAL_DOMAIN = [0, 100];
+const RADIAL_BG = { fill: "#2a2d35" };
+
 const CATEGORY_STYLE = {
   Clean: { color: "#30d158", bg: "bg-[#30d158]/10 text-[#30d158] border-[#30d158]/30" },
   Watch: { color: "#0a84ff", bg: "bg-[#0a84ff]/10 text-[#0a84ff] border-[#0a84ff]/30" },
@@ -38,8 +41,8 @@ export default function FoulingPanel({ towerId, fouling }) {
               startAngle={220}
               endAngle={-40}
             >
-              <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-              <RadialBar background={{ fill: "#2a2d35" }} dataKey="value" cornerRadius={0} />
+              <PolarAngleAxis type="number" domain={RADIAL_DOMAIN} tick={false} />
+              <RadialBar background={RADIAL_BG} dataKey="value" cornerRadius={0} />
             </RadialBarChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center">

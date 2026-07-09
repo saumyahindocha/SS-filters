@@ -24,8 +24,8 @@ function TopBar() {
       ]);
       setAlertCount(alerts.length);
       setTariff(settings.tariff_rupees_per_kwh);
-    } catch {
-      /* ignore */
+    } catch (error) {
+      console.error("Failed to refresh topbar data:", error);
     }
   };
   useEffect(() => {

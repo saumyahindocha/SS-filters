@@ -4,6 +4,17 @@ import {
 } from "recharts";
 import { IDS } from "@/constants/testIds";
 
+const RANGES = [
+  { k: 6, label: "6h" },
+  { k: 24, label: "24h" },
+  { k: 72, label: "3d" },
+  { k: 168, label: "7d" },
+];
+const CHART_MARGIN = { top: 10, right: 12, left: 0, bottom: 0 };
+const TOOLTIP_STYLE = { background: "#0b0d11", border: "1px solid #2a2d35", fontSize: 12 };
+const TOOLTIP_LABEL_STYLE = { color: "#a1a6b4" };
+const AXIS_TICK = { fill: "#a1a6b4", fontSize: 11 };
+
 function fmtTs(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -25,13 +36,6 @@ export default function PowerTrendChart({ towerId, data, baseline, range, onRang
     });
   }, [data, baseline]);
 
-  const ranges = [
-    { k: 6, label: "6h" },
-    { k: 24, label: "24h" },
-    { k: 72, label: "3d" },
-    { k: 168, label: "7d" },
-  ];
-
   return (
     <div className="scada-card p-4 h-full flex flex-col" data-testid={IDS.trendChart(towerId)}>
       <div className="flex items-center justify-between mb-3">
@@ -40,7 +44,7 @@ export default function PowerTrendChart({ towerId, data, baseline, range, onRang
           <div className="text-sm text-[#a1a6b4]">Actual (kW) vs commissioning-time baseline</div>
         </div>
         <div className="flex gap-1">
-          {ranges.map((r) => (
+          {RANGES.map((r) => (
             <button
               key={r.k}
               data-testid={IDS.trendRange(r.k)}
@@ -58,13 +62,13 @@ export default function PowerTrendChart({ towerId, data, baseline, range, onRang
       </div>
       <div className="flex-1 min-h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chart} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+          <ComposedChart data={chart} margin={CHART_MARGIN}>
             <CartesianGrid stroke="#2a2d35" strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="label" stroke="#6b7280" tick={{ fill: "#a1a6b4", fontSize: 11 }} />
-            <YAxis stroke="#6b7280" tick={{ fill: "#a1a6b4", fontSize: 11 }} />
+            <XAxis dataKey="label" stroke="#6b7280" tick={AXIS_TICK} />
+            <YAxis stroke="#6b7280" tick={AXIS_TICK} />
             <Tooltip
-              contentStyle={{ background: "#0b0d11", border: "1px solid #2a2d35", fontSize: 12 }}
-              labelStyle={{ color: "#a1a6b4" }}
+              contentStyle={TOOLTIP_STYLE}
+              labelStyle={TOOLTIP_LABEL_STYLE}
             />
             <Area
               type="monotone"
