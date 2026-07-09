@@ -7,6 +7,7 @@ import Overview from "@/pages/Overview";
 import TowerDetail from "@/pages/TowerDetail";
 import AlertsPage from "@/pages/AlertsPage";
 import ProcessPage from "@/pages/ProcessPage";
+import LandingPage from "@/pages/LandingPage";
 import { api } from "@/lib/api";
 import { IDS } from "@/constants/testIds";
 import "@/App.css";
@@ -56,7 +57,7 @@ function TopBar() {
   return (
     <header className="border-b border-[#2a2d35] bg-[#0b0d11] sticky top-0 z-30">
       <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center gap-6">
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/dashboard" className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-sm bg-white p-1 flex items-center justify-center">
             <img
               src={LOGO_URL}
@@ -72,7 +73,7 @@ function TopBar() {
           </div>
         </Link>
         <nav className="flex items-center gap-1 ml-6">
-          {nav("/", "Overview", IDS.navOverview)}
+          {nav("/dashboard", "Overview", IDS.navOverview)}
           {nav("/process", "Process", "nav-process")}
           {nav("/alerts", "Alerts", IDS.navAlerts)}
         </nav>
@@ -99,19 +100,26 @@ function TopBar() {
   );
 }
 
+function DashboardShell({ children }) {
+  return (
+    <>
+      <TopBar />
+      <main className="max-w-[1600px] mx-auto px-6 py-6">{children}</main>
+    </>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <div className="App min-h-screen">
-        <TopBar />
-        <main className="max-w-[1600px] mx-auto px-6 py-6">
-          <Routes>
-            <Route path="/" element={<Overview />} />
-            <Route path="/process" element={<ProcessPage />} />
-            <Route path="/tower/:towerId" element={<TowerDetail />} />
-            <Route path="/alerts" element={<AlertsPage />} />
-          </Routes>
-        </main>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/dashboard" element={<DashboardShell><Overview /></DashboardShell>} />
+          <Route path="/process" element={<DashboardShell><ProcessPage /></DashboardShell>} />
+          <Route path="/tower/:towerId" element={<DashboardShell><TowerDetail /></DashboardShell>} />
+          <Route path="/alerts" element={<DashboardShell><AlertsPage /></DashboardShell>} />
+        </Routes>
         <Toaster theme="dark" position="bottom-right" />
       </div>
     </BrowserRouter>
