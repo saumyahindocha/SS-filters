@@ -743,6 +743,104 @@ async def http_ingest(payload: IngestPayload):
 
 app.include_router(api)
 
+# ============ Emergent-managed Google Auth ============
+# REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+import httpx
+from fastapi import Request, Response, Cookie
+
+class OnboardingIn(BaseModel):
+    company_name: str
+    phone: Optional[str] = None
+    designation: Optional[str] = None
+    plant_location: Optional[str] = None
+
+async def _current_user(request: Request):
+    token = request.cookies.get("session_token")
+    if not token:
+        h = request.headers.get("authorization", "")
+        if h.startswith("Bearer "):
+            token = h[7:]
+    if not token:
+        raise HTTPException(401, "not authenticated")
+    sess = await db.user_sessions.find_one({"session_token": token}, {"_id": 0})
+    if not sess:
+        raise HTTPException(401, "invalid session")
+    exp = sess["expires_at"]
+    if isinstance(exp, str):
+        exp = datetime.fromisoformat(exp)
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp < now_utc():
+        raise HTTPException(401, "session expired")
+    user = await db.users.find_one({"user_id": sess["user_id"]}, {"_id": 0})
+    if not user:
+        raise HTTPException(401, "user not found")
+    return user
+
+@api.post("/auth/session")
+async def auth_session(request: Request, response: Response):
+    body = await request.json()
+    session_id = body.get("session_id")
+    if not session_id:
+        raise HTTPException(400, "session_id required")
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.get(
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": session_id},
+        )
+    if r.status_code != 200:
+        raise HTTPException(401, "invalid session_id")
+    data = r.json()
+    email = data["email"]
+    existing = await db.users.find_one({"email": email}, {"_id": 0})
+    if existing:
+        user_id = existing["user_id"]
+        await db.users.update_one({"user_id": user_id},
+            {"$set": {"name": data.get("name"), "picture": data.get("picture")}})
+        onboarded = bool(existing.get("company_name"))
+    else:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        await db.users.insert_one({
+            "user_id": user_id, "email": email,
+            "name": data.get("name"), "picture": data.get("picture"),
+            "created_at": iso(now_utc()),
+        })
+        onboarded = False
+    await db.user_sessions.insert_one({
+        "user_id": user_id,
+        "session_token": data["session_token"],
+        "expires_at": iso(now_utc() + timedelta(days=7)),
+        "created_at": iso(now_utc()),
+    })
+    response.set_cookie(
+        "session_token", data["session_token"],
+        httponly=True, secure=True, samesite="none", path="/",
+        max_age=7 * 24 * 3600,
+    )
+    return {"user_id": user_id, "email": email, "name": data.get("name"),
+            "picture": data.get("picture"), "onboarded": onboarded}
+
+@api.get("/auth/me")
+async def auth_me(request: Request):
+    return await _current_user(request)
+
+@api.post("/auth/onboarding")
+async def auth_onboarding(request: Request, body: OnboardingIn):
+    user = await _current_user(request)
+    await db.users.update_one({"user_id": user["user_id"]},
+        {"$set": body.model_dump(exclude_none=True)})
+    return await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
+
+@api.post("/auth/logout")
+async def auth_logout(request: Request, response: Response):
+    token = request.cookies.get("session_token")
+    if token:
+        await db.user_sessions.delete_many({"session_token": token})
+    response.delete_cookie("session_token", path="/")
+    return {"ok": True}
+
+app.include_router(api)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

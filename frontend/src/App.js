@@ -8,6 +8,7 @@ import TowerDetail from "@/pages/TowerDetail";
 import AlertsPage from "@/pages/AlertsPage";
 import ProcessPage from "@/pages/ProcessPage";
 import LandingPage from "@/pages/LandingPage";
+import { AuthProvider, AuthCallback, ProtectedRoute, SignInPage, OnboardingPage, useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { IDS } from "@/constants/testIds";
 import "@/App.css";
@@ -100,28 +101,57 @@ function TopBar() {
   );
 }
 
+function UserChip() {
+  const { user, logout } = useAuth();
+  if (!user) return null;
+  return (
+    <div className="scada-sub px-3 py-1.5 flex items-center gap-2" data-testid="user-chip">
+      {user.picture && <img src={user.picture} alt="" className="w-5 h-5 rounded-full" />}
+      <span className="text-xs text-white">{user.name || user.email}</span>
+      <button onClick={logout} data-testid="logout-btn" className="text-[10px] uppercase tracking-wider text-[#a1a6b4] hover:text-white ml-2">
+        Sign out
+      </button>
+    </div>
+  );
+}
+
 function DashboardShell({ children }) {
   return (
     <>
       <TopBar />
+      <div className="fixed top-3 right-6 z-40"><UserChip /></div>
       <main className="max-w-[1600px] mx-auto px-6 py-6">{children}</main>
     </>
+  );
+}
+
+function AppRouter() {
+  // CRITICAL: handle session_id fragment synchronously during render
+  if (window.location.hash?.includes("session_id=")) {
+    return <AuthCallback />;
+  }
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/signin" element={<SignInPage />} />
+      <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><DashboardShell><Overview /></DashboardShell></ProtectedRoute>} />
+      <Route path="/process"   element={<ProtectedRoute><DashboardShell><ProcessPage /></DashboardShell></ProtectedRoute>} />
+      <Route path="/tower/:towerId" element={<ProtectedRoute><DashboardShell><TowerDetail /></DashboardShell></ProtectedRoute>} />
+      <Route path="/alerts"    element={<ProtectedRoute><DashboardShell><AlertsPage /></DashboardShell></ProtectedRoute>} />
+    </Routes>
   );
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="App min-h-screen">
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/dashboard" element={<DashboardShell><Overview /></DashboardShell>} />
-          <Route path="/process" element={<DashboardShell><ProcessPage /></DashboardShell>} />
-          <Route path="/tower/:towerId" element={<DashboardShell><TowerDetail /></DashboardShell>} />
-          <Route path="/alerts" element={<DashboardShell><AlertsPage /></DashboardShell>} />
-        </Routes>
-        <Toaster theme="dark" position="bottom-right" />
-      </div>
+      <AuthProvider>
+        <div className="App min-h-screen">
+          <AppRouter />
+          <Toaster theme="dark" position="bottom-right" />
+        </div>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
