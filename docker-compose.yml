@@ -1,0 +1,94 @@
+version: "3.9"
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: ct-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./on-prem/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  timescaledb:
+    image: timescale/timescaledb:2.14.2-pg16
+    container_name: ct-timescale
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ctuser
+      POSTGRES_PASSWORD: ctpass
+      POSTGRES_DB: ct_audit
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./on-prem/timescale_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+
+  # NOTE: For on-prem deployment, swap Mongo out and rewire backend to Postgres.
+  # For dev-preview we ship Mongo; the on-prem Timescale service is provided
+  # and the schema.sql is provisioned so future migration is trivial.
+  mongo:
+    image: mongo:7
+    container_name: ct-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ct-backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - mosquitto
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: ct_audit
+      CORS_ORIGINS: "*"
+      TARIFF_RUPEES_PER_KWH: "9.0"
+      NUM_TOWERS: "2"
+      SIM_INTERVAL_SEC: "15"
+      ANALYTICS_INTERVAL_SEC: "60"
+      MQTT_ENABLED: "true"
+      MQTT_HOST: "mosquitto"
+      MQTT_PORT: "1883"
+      MQTT_TOPIC: "factory/towers/+/telemetry"
+    ports:
+      - "8001:8001"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_BACKEND_URL: http://localhost:8001
+    container_name: ct-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+  # Optional: sample MQTT publisher simulating PLC/IoT gateway
+  simulator:
+    build:
+      context: ./on-prem
+      dockerfile: Dockerfile.simulator
+    container_name: ct-simulator
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      NUM_TOWERS: "2"
+      PUBLISH_INTERVAL_SEC: "15"
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:
+  timescale_data:
+  mongo_data:

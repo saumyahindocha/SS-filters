@@ -1,56 +1,107 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
+import { Toaster } from "sonner";
+import { Activity, AlertTriangle, IndianRupee } from "lucide-react";
+import TariffDialog from "@/components/TariffDialog";
+import Overview from "@/pages/Overview";
+import TowerDetail from "@/pages/TowerDetail";
+import AlertsPage from "@/pages/AlertsPage";
+import { api } from "@/lib/api";
+import { IDS } from "@/constants/testIds";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
-import { HOME } from "@/constants/testIds";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+function TopBar() {
+  const [alertCount, setAlertCount] = useState(0);
+  const [tariff, setTariff] = useState(null);
+  const [openTariff, setOpenTariff] = useState(false);
+  const loc = useLocation();
 
-const Home = () => {
-  const helloWorldApi = async () => {
+  const refresh = async () => {
     try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
+      const [alerts, settings] = await Promise.all([
+        api.alerts({ acknowledged: false, limit: 200 }),
+        api.settings(),
+      ]);
+      setAlertCount(alerts.length);
+      setTariff(settings.tariff_rupees_per_kwh);
+    } catch {
+      /* ignore */
     }
   };
-
   useEffect(() => {
-    helloWorldApi();
+    refresh();
+    const t = setInterval(refresh, 8000);
+    return () => clearInterval(t);
   }, []);
 
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          data-testid={HOME.emergentLink}
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
+  const nav = (to, label, testid) => {
+    const active = loc.pathname === to || (to !== "/" && loc.pathname.startsWith(to));
+    return (
+      <Link
+        to={to}
+        data-testid={testid}
+        className={`px-3 py-1.5 rounded-sm text-sm tracking-wide transition-colors ${
+          active ? "bg-[#1a1d24] text-white" : "text-[#a1a6b4] hover:text-white hover:bg-[#151820]"
+        }`}
+      >
+        {label}
+      </Link>
+    );
+  };
 
-function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <header className="border-b border-[#2a2d35] bg-[#0b0d11] sticky top-0 z-30">
+      <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center gap-6">
+        <Link to="/" className="flex items-center gap-2">
+          <Activity className="w-5 h-5 text-[#0a84ff]" strokeWidth={2.5} />
+          <div className="leading-tight">
+            <div className="text-sm font-semibold tracking-tight">Cooling Tower Audit</div>
+            <div className="text-[10px] uppercase tracking-[0.16em] text-[#6b7280] mono">
+              On-Prem · Factory LAN
+            </div>
+          </div>
+        </Link>
+        <nav className="flex items-center gap-1 ml-6">
+          {nav("/", "Overview", IDS.navOverview)}
+          {nav("/alerts", "Alerts", IDS.navAlerts)}
+        </nav>
+        <div className="flex-1" />
+        <button
+          data-testid={IDS.tariffButton}
+          onClick={() => setOpenTariff(true)}
+          className="scada-sub px-3 py-1.5 flex items-center gap-2 hover:border-[#3e4352] transition-colors"
+        >
+          <IndianRupee className="w-3.5 h-3.5 text-[#a1a6b4]" />
+          <span className="scada-label">Tariff</span>
+          <span className="mono text-sm text-white">
+            {tariff == null ? "—" : `₹${tariff.toFixed(2)}/kWh`}
+          </span>
+        </button>
+        <div className="scada-sub px-3 py-1.5 flex items-center gap-2">
+          <AlertTriangle className="w-3.5 h-3.5 text-[#ff9f0a]" />
+          <span className="scada-label">Alerts</span>
+          <span className="mono text-sm text-white">{alertCount}</span>
+        </div>
+      </div>
+      <TariffDialog open={openTariff} onOpenChange={setOpenTariff} onSaved={refresh} />
+    </header>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <div className="App min-h-screen">
+        <TopBar />
+        <main className="max-w-[1600px] mx-auto px-6 py-6">
+          <Routes>
+            <Route path="/" element={<Overview />} />
+            <Route path="/tower/:towerId" element={<TowerDetail />} />
+            <Route path="/alerts" element={<AlertsPage />} />
+          </Routes>
+        </main>
+        <Toaster theme="dark" position="bottom-right" />
+      </div>
+    </BrowserRouter>
+  );
+}

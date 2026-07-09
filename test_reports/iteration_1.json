@@ -1,0 +1,31 @@
+{
+  "summary": "Full backend + frontend smoke pass for cooling-tower dashboard. All 8 backend endpoint groups return expected shapes/fields; PATCH mutations for alerts and settings persist correctly. Frontend renders Overview with both tower cards, TowerDetail with all 6 sensor tiles + 4 power tiles + trend chart + fouling + savings, all 4 trend-range buttons work, Alerts page shows 200 rows with 200 acknowledge buttons, and Tariff modal updates topbar (verified visually as ₹11.25/kWh after save).",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "GET /api/towers returns 2 towers with id/name/location/status/latest_analytics/latest_values/cumulative_savings_lost/devices(online=15,total=15)/active_alerts",
+    "GET /api/towers/CT-01 returns metadata (id, name, location, design_flow_m3h, baseline_*)",
+    "GET /api/towers/CT-01/snapshot returns values with flow_m3h/supply_temp_c/return_temp_c/conductivity_us/turbidity_ntu/filter_dp_kpa/fan_kw/pump_kw/chiller_kw and 15 devices",
+    "GET /api/towers/CT-01/analytics/latest returns all required KPIs incl. cumulative_savings_lost, fouling_category, hours_to_cleaning, savings_lost_rupees_delta",
+    "GET /api/towers/CT-01/history?metric=total_power_kw&hours=24 returns 373 points and baseline={slope:0.17,intercept:4.0}",
+    "GET /api/towers/CT-01/fouling returns category 'Clean' with thresholds {watch:0.35,fouled:0.6,critical:0.85}",
+    "GET /api/alerts (200) and ?acknowledged=false (200); PATCH /api/alerts/{id} sets acknowledged:true (verified via re-GET)",
+    "GET /api/settings + PATCH tariff 12.5 persisted; restored to 9.0",
+    "Overview page renders tower-card-CT-01 & tower-card-CT-02 with KPIs and top strip",
+    "tower-card-open-CT-01 navigates to /tower/CT-01 and tower-detail-CT-01 renders",
+    "All 6 sensor tiles (flow/supply/return/conductivity/turbidity/filter_dp) show numeric values",
+    "All 4 power tiles (fan/pump/chiller/total) show numeric values",
+    "trend-chart-CT-01 renders; trend-range 6/24/72/168 buttons all clickable",
+    "fouling-cat-CT-01='Clean', fouling-hours-CT-01='13.7 h', savings-CT-01='₹3,781'",
+    "nav-alerts navigates to /alerts; alerts-table shows 200 rows with 200 alert-ack-* buttons",
+    "Tariff modal (topbar-tariff-btn -> tariff-input -> tariff-save) updates topbar to '₹11.25/kWh' (visually confirmed in screenshot)"
+  ],
+  "failed": [],
+  "notes": [
+    "In GET /api/towers response, active_alerts is an integer count (not an array). Frontend appears to consume it fine; original spec text said 'active_alerts' — treat as design choice unless main agent intended a list.",
+    "Tower object uses top-level key 'id' (not 'tower_id'), which is by design per handoff note."
+  ],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}
