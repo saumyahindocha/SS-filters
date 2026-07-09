@@ -37,6 +37,7 @@ DB_NAME = os.environ["DB_NAME"]
 DEFAULT_TARIFF = float(os.environ.get("TARIFF_RUPEES_PER_KWH", "9.0"))
 NUM_TOWERS = int(os.environ.get("NUM_TOWERS", "2"))
 SIM_INTERVAL_SEC = float(os.environ.get("SIM_INTERVAL_SEC", "15"))
+SIMULATOR_ENABLED = os.environ.get("SIMULATOR_ENABLED", "true").lower() == "true"
 ANALYTICS_INTERVAL_SEC = float(os.environ.get("ANALYTICS_INTERVAL_SEC", "60"))
 MQTT_ENABLED = os.environ.get("MQTT_ENABLED", "false").lower() == "true"
 MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
@@ -513,6 +514,8 @@ async def lifespan(app: FastAPI):
     towers = await ensure_towers()
     for idx, t in enumerate(towers):
         _sim_states[t.id] = TowerSimState(t, idx)
+        if not SIMULATOR_ENABLED:
+            continue
         # Seed a few historical points for the trend chart
         base = now_utc() - timedelta(hours=6)
         for i in range(24):
@@ -718,6 +721,24 @@ async def update_settings(patch: SettingsPatch):
         data[k] = v
     await db.settings.update_one({"_id": "global"}, {"$set": data}, upsert=True)
     return Settings(**data)
+
+
+class IngestPayload(BaseModel):
+    tower_id: str
+    values: Dict[str, float]
+    ts: Optional[datetime] = None
+
+
+@api.post("/ingest")
+async def http_ingest(payload: IngestPayload):
+    """HTTP alternative to MQTT for gateways that speak REST/webhook.
+
+    Body: {"tower_id": "CT-01", "values": {"flow_m3h": 512.3, ...}, "ts": "..."}
+    """
+    if not await db.towers.find_one({"id": payload.tower_id}):
+        raise HTTPException(404, "tower not found")
+    await ingest_payload(payload.tower_id, payload.values, ts=payload.ts)
+    return {"ok": True, "tower_id": payload.tower_id, "count": len(payload.values)}
 
 
 app.include_router(api)

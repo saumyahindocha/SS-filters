@@ -52,6 +52,7 @@ services:
       NUM_TOWERS: "2"
       SIM_INTERVAL_SEC: "15"
       ANALYTICS_INTERVAL_SEC: "60"
+      SIMULATOR_ENABLED: "false"
       MQTT_ENABLED: "true"
       MQTT_HOST: "mosquitto"
       MQTT_PORT: "1883"
