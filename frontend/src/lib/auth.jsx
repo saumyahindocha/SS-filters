@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -14,7 +14,10 @@ export function AuthProvider({ children }) {
     try {
       const r = await axios.get(`${API}/auth/me`);
       setUser(r.data);
-    } catch { setUser(null); } finally { setLoading(false); }
+    } catch (err) {
+      if (err?.response?.status !== 401) console.error("auth check failed:", err);
+      setUser(null);
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -23,12 +26,16 @@ export function AuthProvider({ children }) {
     check();
   }, [check]);
 
-  const logout = async () => {
-    try { await axios.post(`${API}/auth/logout`); } catch {/*noop*/}
+  const logout = useCallback(async () => {
+    try { await axios.post(`${API}/auth/logout`); } catch (err) { console.error("logout failed:", err); }
     setUser(null);
-  };
+  }, []);
 
-  return <AuthCtx.Provider value={{ user, setUser, loading, refresh: check, logout }}>{children}</AuthCtx.Provider>;
+  const ctxValue = useMemo(
+    () => ({ user, setUser, loading, refresh: check, logout }),
+    [user, loading, check, logout],
+  );
+  return <AuthCtx.Provider value={ctxValue}>{children}</AuthCtx.Provider>;
 }
 export const useAuth = () => useContext(AuthCtx);
 
@@ -55,9 +62,9 @@ export function AuthCallback() {
         const back = sessionStorage.getItem("post_login_redirect") || "/dashboard";
         sessionStorage.removeItem("post_login_redirect");
         nav(r.data.onboarded ? back : "/onboarding", { replace: true, state: { back } });
-      } catch { nav("/", { replace: true }); }
+      } catch (err) { console.error("session exchange failed:", err); nav("/", { replace: true }); }
     })();
-  }, []); // eslint-disable-line
+  }, [nav, refresh, setUser]);
   return <div className="min-h-screen bg-black text-white flex items-center justify-center font-mono text-sm">Signing you in…</div>;
 }
 
@@ -89,6 +96,19 @@ export function SignInPage() {
   );
 }
 
+function OnbField({ k, label, required, value, onChange }) {
+  return (
+    <div>
+      <label className="font-mono text-[10px] tracking-[0.22em] text-white/50">
+        {label}{required && " *"}
+      </label>
+      <input required={required} value={value} onChange={onChange}
+        data-testid={`onboard-${k}`}
+        className="w-full bg-transparent border-b border-white/25 py-2 text-white focus:outline-none focus:border-white" />
+    </div>
+  );
+}
+
 export function OnboardingPage() {
   const { refresh } = useAuth();
   const nav = useNavigate();
@@ -100,21 +120,16 @@ export function OnboardingPage() {
     await refresh();
     nav(loc.state?.back || "/dashboard", { replace: true });
   };
-  const F = (k, l, req = false) => (
-    <div><label className="font-mono text-[10px] tracking-[0.22em] text-white/50">{l}{req && " *"}</label>
-      <input required={req} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })}
-        data-testid={`onboard-${k}`}
-        className="w-full bg-transparent border-b border-white/25 py-2 text-white focus:outline-none focus:border-white" /></div>
-  );
+  const setK = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-6" style={{ fontFamily: "'Space Grotesk', system-ui" }}>
       <form onSubmit={submit} className="max-w-md w-full space-y-5" data-testid="onboarding-form">
         <div className="font-mono text-[11px] tracking-[0.28em] text-white/50">WELCOME</div>
         <h1 className="text-3xl font-light">A few company details.</h1>
-        {F("company_name", "COMPANY NAME", true)}
-        {F("designation", "DESIGNATION")}
-        {F("phone", "WORK PHONE")}
-        {F("plant_location", "PLANT LOCATION")}
+        <OnbField k="company_name" label="COMPANY NAME" required value={f.company_name} onChange={setK("company_name")} />
+        <OnbField k="designation" label="DESIGNATION" value={f.designation} onChange={setK("designation")} />
+        <OnbField k="phone" label="WORK PHONE" value={f.phone} onChange={setK("phone")} />
+        <OnbField k="plant_location" label="PLANT LOCATION" value={f.plant_location} onChange={setK("plant_location")} />
         <button type="submit" data-testid="onboard-submit"
           className="mt-4 px-6 py-3 bg-white text-black text-sm font-medium tracking-wide hover:bg-white/90">
           Continue →

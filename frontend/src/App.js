@@ -31,7 +31,9 @@ function TopBar() {
       setAlertCount(alerts.length);
       setTariff(settings.tariff_rupees_per_kwh);
     } catch (error) {
-      console.error("Failed to refresh topbar data:", error);
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to refresh topbar data:", error);
+      }
     }
   };
   useEffect(() => {
